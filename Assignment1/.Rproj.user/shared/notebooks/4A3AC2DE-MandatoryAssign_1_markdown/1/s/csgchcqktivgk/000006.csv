@@ -1,0 +1,3 @@
+"0","model <- lm.fit(nuclear ~ log(nuclear$cost))"
+"2","Error in lm.fit(nuclear ~ log(nuclear$cost)) : 'x' must be a matrix
+"

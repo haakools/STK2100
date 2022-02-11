@@ -1,0 +1,97 @@
+---
+title: "Mandatory Assignment 1"
+author: "Håkon Berggren Olsen"
+date: "Spring 2020"
+output:
+  pdf_document: default
+  html_document: default
+subtitle: STK2100
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+# Problem 1.
+The dataset, nuclear, contains data regarding the construction of 32 Light-Water Reactors built between 1967 and 1971. The scope of the dataset is to predict the cost of construction for further span given the dataset within this time interval. 
+
+The dataset has 32 rows and 11 columns, and has a mix of continous- and categorical variabels. Contionous data such as regarding the cost, construction and net capacity of the a given nuclear powerplant, and categorical such as cooling tower present or absent, if there exists an LWR (Light-Water Reactor) plant at the same site and such. 
+
+The description of all the variables are shown in a table below. 
+
+| **Variable Key** 	|                                                     **Continous Variables**                                                     	|
+|------------------	|:-------------------------------------------------------------------------------------------------------------------------------:	|
+| cost:            	| The capital cost of construction in millions of dollars adjusted to 1976 base.                                                  	|
+| date:            	| The date on which the construction permit was issued. The data are measured in years since January 1 1990 to the nearest month. 	|
+| t1:              	| The time between application for and issue of the construction permit.                                                          	|
+| t2:              	| The time between issue of operating license and construction permit.                                                            	|
+| cap:             	| The net capacity of the power plant (MWe).                                                                                      	|
+| cum.n:           	| The cumulative number of power plants constructed by each architect-engineer.                                                   	|
+| **Variable Key** 	|                                                    **Categorical Variables**                                                    	|
+| pr:              	| A binary variable where 1 indicates the prior existence of a LWR plant at the same site.                                        	|
+| ne:              	| A binary variable where 1 indicates that the plant was constructed in the north-east region of the U.S.A.                       	|
+| ct:              	| A binary variable where 1 indicates the use of a cooling tower in the plant.                                                    	|
+| bw:              	| A binary variable where 1 indicates that the nuclear steam supply system was manufactured by Babcock-Wilcox.                    	|
+| pt:              	| A binary variable where 1 indicates those plants with partial turnkey guarantees.                                               	|
+
+## a)
+
+Loading the dataset
+
+```{r cars}
+datadir = "http://www.uio.no/studier/emner/matnat/math/STK2100/data/"
+nuclear = read.table(paste(datadir, "nuclear.dat", sep=""), header=T)
+```
+
+Generating some plots to gain an intuition for the dataset.
+
+```{r}
+plot(nuclear)
+```
+This is very cluttered and hard to grasp, much due to categorical variables not giving any immeadiate insight. Therefore we will plot the dataset only regarding the continous variables.
+
+```{r}
+cont_var <- c("cost", "date", "t1", "t2", "cap", "cum.n")
+cat_var <- c("pr", "ne", "ct", "bw", "pt")
+plot(nuclear[cont_var])
+```
+\\ 
+
+
+From this figure we can see some clear trends. We can see the cost of the LWRs are increasing over time, which can be attributed to inflation. A very positive correlation is also spotted in the t1 vs date indicating that the time between application and issue of the construction permits is steadily increasing and almost doubles at the end of the dataset. t2 vs date shows however a negative correlation, indicating that it takes shorter and shorter time from obtaining operating license to gaining construction permit.
+
+The net capacity of the LWR, cap, does show a slight increase with cost. This is expected as the capital cost of the investment should match it's returns.
+
+NOTE: still not sure how the cum.n "The cumulative number of power plants constructed by each architect-engineer."  --- what architect-engineer? -- is construed.
+
+
+## b) Constructing a model
+
+Look at the model 
+
+$$ Y_i = \beta_0 +\beta_1 x_{i,1}+ \cdot\cdot\cdot +\beta_p x_{p,i} + \epsilon_i $$
+
+where $Y_i$ is cost at log scale for observation $i$. 
+
+ - What are the standard assumptions about the noise term $\epsilon_i$? Discuss also which of these assumptions that are the most important?
+    The assumptions of the noise term $\epsilon_i$ is that it is normally distributed. 
+
+
+
+
+ - Fit this model including all the observations with log(cost) as response and all the other variables as covariates. Discuss the results
+ 
+```{r}
+features <- c("date", "t1", "t2", "cap", "cum.n","pr", "ne", "ct", "bw", "pt")
+
+model <- lm.fit(nuclear ~ log(nuclear$cost))
+
+summary(model)
+```
+ 
+ 
+ 
+ 
+ 
+ 

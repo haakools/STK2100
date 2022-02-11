@@ -1,0 +1,3 @@
+"0","cont_var <- c(""cost"", ""date"", ""t1"", ""t2"", ""cap"", ""cum.n"")"
+"0","cat_var <- c(""pr"", ""ne"", ""ct"", ""bw"", ""pt"")"
+"0","plot(nuclear[cont_var])"
