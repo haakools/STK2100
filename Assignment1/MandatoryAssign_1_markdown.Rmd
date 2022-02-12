@@ -20,7 +20,7 @@ The dataset has 32 rows and 11 columns, and has a mix of continous- and categori
 
 The description of all the variables are shown in a table below. 
 
-| **Variable Key** 	|                                                     **Continous Variables**                                                     	|
+| **Name**        	|                                                     **Continous Variables**                                                     	|
 |------------------	|:-------------------------------------------------------------------------------------------------------------------------------:	|
 | cost:            	| The capital cost of construction in millions of dollars adjusted to 1976 base.                                                  	|
 | date:            	| The date on which the construction permit was issued. The data are measured in years since January 1 1990 to the nearest month. 	|
@@ -28,7 +28,8 @@ The description of all the variables are shown in a table below.
 | t2:              	| The time between issue of operating license and construction permit.                                                            	|
 | cap:             	| The net capacity of the power plant (MWe).                                                                                      	|
 | cum.n:           	| The cumulative number of power plants constructed by each architect-engineer.                                                   	|
-| **Variable Key** 	|                                                    **Categorical Variables**                                                    	|
+| **Name** 	        |                                                    **Categorical Variables**                                                      |
+|------------------	|---------------------------------------------------------------------------------------------------------------------------------	|
 | pr:              	| A binary variable where 1 indicates the prior existence of a LWR plant at the same site.                                        	|
 | ne:              	| A binary variable where 1 indicates that the plant was constructed in the north-east region of the U.S.A.                       	|
 | ct:              	| A binary variable where 1 indicates the use of a cooling tower in the plant.                                                    	|
@@ -56,8 +57,7 @@ cont_var <- c("cost", "date", "t1", "t2", "cap", "cum.n")
 cat_var <- c("pr", "ne", "ct", "bw", "pt")
 plot(nuclear[cont_var])
 ```
-\\ 
-
+\
 
 From this figure we can see some clear trends. We can see the cost of the LWRs are increasing over time, which can be attributed to inflation. A very positive correlation is also spotted in the t1 vs date indicating that the time between application and issue of the construction permits is steadily increasing and almost doubles at the end of the dataset. t2 vs date shows however a negative correlation, indicating that it takes shorter and shorter time from obtaining operating license to gaining construction permit.
 
@@ -83,15 +83,37 @@ where $Y_i$ is cost at log scale for observation $i$.
  - Fit this model including all the observations with log(cost) as response and all the other variables as covariates. Discuss the results
  
 ```{r}
-features <- c("date", "t1", "t2", "cap", "cum.n","pr", "ne", "ct", "bw", "pt")
-
-model <- lm.fit(nuclear ~ log(nuclear$cost))
-
+#fit with all covariates
+model2 = lm(log(cost)~., data=nuclear)
 summary(model)
 ```
+Discuss the results here
+
+## c) 
+Removing the highest corresponding P-value, i.e. t1 gives a better result as a high P-value means that the outcomes in $log(cost)$ cannot be sufficiently explained by the changes in $t1$. When doing this we get
+
+```{r}
+#Fit with t1 taken away.
+model2 = lm(log(cost)~.-t1,data=nuclear)
+summary(model2)
+
+```
  
+ An increase from 13.28 to 15.42 in the F-statistic (explain F-statistic), increase of the multiple R-squared from 0.8635 to 0.8631 and likewise 0.7985 to 0.8072 for the adjusted R-squared. 
  
- 
- 
- 
+## d) 
+
+Continuing to remove all explanatory variables untill all P-values are less than $0.05$. What is the final model?
+Make different plots in order to evaluate whether the model is reasonable.
+
+
+
+Use the final model to predict response and make a model based on the average quadratic error $(\frac{1}{n} \sum_{i=1}^n(y_i-\hat{y_i})^2)$ in order ot evaluate how good the model is. Discuss weaknesses with such a procedure. 
+
+
+```{r}
+d.new = data.frame(data=70.0, t1=13, t2=50, cap=800, pr=1, ne=0, ct=0, bw=1, cum.n=8, pt=1)
+
+
+
  

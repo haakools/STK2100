@@ -1,2 +1,0 @@
-"0","datadir = ""http://www.uio.no/studier/emner/matnat/math/STK2100/data/"""
-"0","nuclear = read.table(paste(datadir, ""nuclear.dat"", sep=""""), header=T)"
