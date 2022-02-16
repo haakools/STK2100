@@ -36,9 +36,8 @@ The description of all the variables are shown in a table below.
 | bw:              	| A binary variable where 1 indicates that the nuclear steam supply system was manufactured by Babcock-Wilcox.                    	|
 | pt:              	| A binary variable where 1 indicates those plants with partial turnkey guarantees.                                               	|
 
-## a)
+## a) Loading the dataset
 
-Loading the dataset
 
 ```{r cars}
 datadir = "http://www.uio.no/studier/emner/matnat/math/STK2100/data/"
@@ -75,21 +74,23 @@ $$ Y_i = \beta_0 +\beta_1 x_{i,1}+ \cdot\cdot\cdot +\beta_p x_{p,i} + \epsilon_i
 where $Y_i$ is cost at log scale for observation $i$. 
 
  - What are the standard assumptions about the noise term $\epsilon_i$? Discuss also which of these assumptions that are the most important?
-    The assumptions of the noise term $\epsilon_i$ is that it is normally distributed. 
-
-
-
+    - The variance of the noise, $\epsilon_i$ are constant.
+    - The expectance of the noise is $\mathbb{E}[\epsilon_i] = 0$
+    - The noise is uncorrelated.
+    - "The indepenedent variables are measured with no error"
+    - "The sample is representative of the population at large."
 
  - Fit this model including all the observations with log(cost) as response and all the other variables as covariates. Discuss the results
  
 ```{r}
 #fit with all covariates
 model2 = lm(log(cost)~., data=nuclear)
-summary(model)
+summary(model2)
 ```
 Discuss the results here
 
-## c) 
+## c) Removing covariates with high P-value
+
 Removing the highest corresponding P-value, i.e. t1 gives a better result as a high P-value means that the outcomes in $log(cost)$ cannot be sufficiently explained by the changes in $t1$. When doing this we get
 
 ```{r}
@@ -107,13 +108,152 @@ Continuing to remove all explanatory variables untill all P-values are less than
 Make different plots in order to evaluate whether the model is reasonable.
 
 
+```{r}
+model3 <- lm(log(cost)~. -t1-bw, data=nuclear)
+#summary(model3)
+
+model4 <- lm(log(cost)~. -t1-bw-pr, data=nuclear)
+#summary(model4)
+
+model5 <- lm(log(cost)~. -t1-bw-pr-t2, data=nuclear)
+#summary(model5)
+
+model5 <- lm(log(cost)~. -t1-bw-pr-t2-cum.n, data=nuclear)
+#summary(model5)
+
+model6 <- lm(log(cost)~. -t1-bw-pr-t2-cum.n-ct, data=nuclear)
+summary(model6)
+```
+
+```{r}
+# Making plots of the final model from forward selection with the criteria of p values < 0.05 
+library(ggplot2)
+
+predicted_cost <- data.frame(cost_pred = predict(model6, nuclear), cost=nuclear$cost)
+
+#ggplot(nuclear, aes(x = cap, y = cost)) +
+#  geom_point() + 
+#  geom_line(color="red", data = predicted_cost, aes(x = cap, y = cost))
+
+```
+
+
+## e) Model based on quadratic error
 
 Use the final model to predict response and make a model based on the average quadratic error $(\frac{1}{n} \sum_{i=1}^n(y_i-\hat{y_i})^2)$ in order ot evaluate how good the model is. Discuss weaknesses with such a procedure. 
 
 
+Assume now we want to predict $cost$ for a new data point. More specifically we are interested in $\theta = \mathbb{E}[Y|\bold{x^*}]$ as well as $\eta = \mathbb{E}[\text{exp}(Y)|\bold{x^*}]$ where $\bold*$ is defined by the $d.new$ data point in the code below.
+
 ```{r}
-d.new = data.frame(data=70.0, t1=13, t2=50, cap=800, pr=1, ne=0, ct=0, bw=1, cum.n=8, pt=1)
+#d.new = data.frame(data=70.0, t1=13, t2=50, cap=800, pr=1, ne=0, ct=0, bw=1, cum.n=8, pt=1)
+
+#predict(fit, d.new, interval="confidence")
+#predict(fit, d.new, interval="predict")
+
+```
+
+## f) Differences between confidence and predict commands
+Run the two commands. Discuss the differences bweteen the two predict commands.
+
+
+## g) Constructing log intervals on non-logarithmic scale
+The intervals given in the previous point is related to $cost$ on log-scale. Try to construct intervals for $cost$ on the original scale.
+
+
+## h) Lasso regression
+
+Aslo try out Lasso regression on this data set.
+
+If you use cross-validation for selection of the penalty parameter, which variables are then included in the final model?
+
+Also compare this with the model you obtained earlier.
+
+Hint: Loook at the Hitters_lasso.R script.
+
+
+# Problem 2.
+
+
+## a) Reading data
+
+Getting the data
+```{r}
+datadir = "http://www.uio.no/studier/emner/matnat/math/STK2100/data/"
+Fe <- read.table(paste(datadir, "fe.dat", sep=""), header=T, sep=",")
+
+options(contrasts=c("contr.treamtent", "contr.treatment"))
+
+Fe$form <- as.factor(Fe$form)
+
+fit1 <- lm(Fe ~ form, data=Fe)
+#summary(fit1)
+
+```
+
+```{r}
+#
+
+```
+The fitting does not work as the data is not 
+
+
+```{r}
+#Fe$form <- as.factor(Fe$form)
+
+#fit2 <- lm(Fe~form, data=Fe)
+#summary(fit2)
+
+```
+
+
+## b) 
+
+From the summary command (after you used the as.factor command) you should get a regression table where there is no row corresponding to $\beta_1$. The specific options command given above actually include the contraint $\beta_1 = \hat{\beta_1} = 0$.
+
+Why is such a contraint necessary?
+
+What interpretations do the other $\beta_j$ parameters then have?
+
+## c) Alternative Constraint
+
+An alternative constraint is to put $\beta_0 = 0$. This can be obtained by 
+
+`fit2 <- lm(Fe~form+0, data=Fe)`
+
+`summary(fit2)`
+
+## d) 
+The constraints $\beta_1 = 0$ or $\beta_2 = 0$ are denoted by $\emph{contrasts}$ in the linear regression terminology. The `contr.treatment` used above corresponds to putting the regression coefficient of the first category equal to zero. An alternative is 
+
+`options(contrasts=c("contr.sum", "contr.sum"))`
+`fit3 <- lm(Fe~form, data=Fe)`
+`summary(fit3)`
+
+in which case a constraint/contrats $\sum_{j=1}^K \beta_j = 0$ is imposed. The `summary`command will still only give $4$ rows in the regression table, not including the row corresponding ot $\beta_4$ in this case. How can you obtain $\hat{\beta_4}$?
+
+
+## e) 
+
+Do the results indicate that there are differences between the formations? Which of the fitted models do you find most suitable for answering this questions?
 
 
 
- 
+## f)
+Now try out the commands
+
+`newdata = data.frame(form=as.factor(c(1,2,3,4)))`
+`pred1 = predict(fit1, newdata)`
+`pred2 = predict(fit2, newdata)`
+`pred3 = predict(fit3, newdata)`
+
+Compare the three predictions and comment on the results.
+
+## g) 
+
+Based on the summary outputs from the different models, is it possible to simplify the model in some way?
+
+Hint: Not all the different outputs will tell the same story here.
+
+
+
