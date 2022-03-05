@@ -10,6 +10,7 @@ subtitle: STK2100
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
 
 ```
 
@@ -47,6 +48,7 @@ nuclear = read.table(paste(datadir, "nuclear.dat", sep=""), header=T)
 Generating some plots to gain an intuition for the dataset.
 
 ```{r}
+
 plot(nuclear)
 ```
 This is very cluttered and hard to grasp, much due to categorical variables not giving any immeadiate insight. Therefore we will plot the dataset only regarding the continous variables.
@@ -97,7 +99,6 @@ Removing the highest corresponding P-value, i.e. t1 gives a better result as a h
 #Fit with t1 taken away.
 model2 = lm(log(cost)~.-t1,data=nuclear)
 summary(model2)
-
 ```
  
  An increase from 13.28 to 15.42 in the F-statistic (explain F-statistic), increase of the multiple R-squared from 0.8635 to 0.8631 and likewise 0.7985 to 0.8072 for the adjusted R-squared. 
@@ -107,63 +108,109 @@ summary(model2)
 Continuing to remove all explanatory variables untill all P-values are less than $0.05$. What is the final model?
 Make different plots in order to evaluate whether the model is reasonable.
 
-
 ```{r}
-model3 <- lm(log(cost)~. -t1-bw, data=nuclear)
-#summary(model3)
+# Iteratively removing the highest covariate with p-value over 0.05
+variables <- names(nuclear)[-1]
+target <- "log(cost)"
 
-model4 <- lm(log(cost)~. -t1-bw-pr, data=nuclear)
-#summary(model4)
+removed_variables = c("-t1")
+for (i in 1:(length(variables)-1)){
+  # Defining the formula
+  f <- as.formula(
+    paste(target, paste(removed_variables,
+                        collapse= " - "),
+                        sep = " ~."))
+  
+  # Computing the model
+  filtermodel <- lm(f, data=nuclear)
 
-model5 <- lm(log(cost)~. -t1-bw-pr-t2, data=nuclear)
-#summary(model5)
+  # Saving R2 coefficients
+  
+  # Finding the covariate with the highest p value
+  p_values <- summary(filtermodel)$coefficients[2:(length(variables)-length(removed_variables)),4]
+  
+  max_p_ind <- which.max(p_values)
+  max_p_name <- names(p_values[max_p_ind])
+  
+  # Checking if the highest p value is higher than 0.05
+  if (p_values[max_p_ind]>0.05){
+    removed_variables <- append(removed_variables, max_p_name)
+  
+  } else {
+    break
+  }
+}
 
-model5 <- lm(log(cost)~. -t1-bw-pr-t2-cum.n, data=nuclear)
-#summary(model5)
-
-model6 <- lm(log(cost)~. -t1-bw-pr-t2-cum.n-ct, data=nuclear)
-summary(model6)
+summary(filtermodel)
 ```
+
+
 
 ```{r}
 # Making plots of the final model from forward selection with the criteria of p values < 0.05 
 library(ggplot2)
 
-predicted_cost <- data.frame(cost_pred = predict(model6, nuclear), cost=nuclear$cost)
+predicted_cost <- data.frame(predict(model2, nuclear))
+predicted_cost_p <- data.frame(predict(filtermodel, nuclear))
 
-#ggplot(nuclear, aes(x = cap, y = cost)) +
-#  geom_point() + 
-#  geom_line(color="red", data = predicted_cost, aes(x = cap, y = cost))
+names(predicted_cost)
 
+nuclear
+
+colors <- c("c1" = "blue", "c2" = "red" , "c3" = "purple")
+shapes <- c("sh1" = 10, "sh2" = 10 , "sh3" = 10 )
+
+plot <- ggplot(data=nuclear, aes(x = cap))+
+  geom_point(data=nuclear,
+             aes(y=cost,
+                 color="c1",
+                 shape="sh1")) +
+  geom_point(data=predicted_cost,
+             aes(y=names(predicted_cost),
+                 color="c2",
+                 shape="sh2")) +
+  geom_point(data=predicted_cost_p,
+             aes(y=names(predicted_cost_p),
+                 color="c3",
+                 shape="sh3"))
+plot
+  
 ```
 
+```{r}
+# Change in
+```
 
 ## e) Model based on quadratic error
 
-Use the final model to predict response and make a model based on the average quadratic error $(\frac{1}{n} \sum_{i=1}^n(y_i-\hat{y_i})^2)$ in order ot evaluate how good the model is. Discuss weaknesses with such a procedure. 
+Use the final model to predict response and make a model based on the average quadratic error $(\frac{1}{n} \sum_{i=1}^n(y_i-\hat{y_i})^2)$ in order to evaluate how good the model is. Discuss weaknesses with such a procedure. 
 
 
-Assume now we want to predict $cost$ for a new data point. More specifically we are interested in $\theta = \mathbb{E}[Y|\bold{x^*}]$ as well as $\eta = \mathbb{E}[\text{exp}(Y)|\bold{x^*}]$ where $\bold*$ is defined by the $d.new$ data point in the code below.
+
+Assume now we want to predict $cost$ for a new data point. More specifically we are interested in $\theta = \mathbb{E}[Y|\mathbf{x^*}]$ as well as $\eta = \mathbb{E}[\text{exp}(Y)|\mathbf{x^*}]$ where $\mathbf*$ is defined by the $d.new$ data point in the code below.
 
 ```{r}
-#d.new = data.frame(data=70.0, t1=13, t2=50, cap=800, pr=1, ne=0, ct=0, bw=1, cum.n=8, pt=1)
+d.new = data.frame(data=70.0, t1=13, t2=50, cap=800, pr=1, ne=0, ct=0, bw=1, cum.n=8, pt=1)
 
-#predict(fit, d.new, interval="confidence")
-#predict(fit, d.new, interval="predict")
+d.new
+
+predict(filtermodel, d.new, interval="confidence")
+predict(filtermodel, d.new, interval="predict")
 
 ```
 
 ## f) Differences between confidence and predict commands
-Run the two commands. Discuss the differences bweteen the two predict commands.
+Run the two commands. Discuss the differences between the two predict commands.
 
 
 ## g) Constructing log intervals on non-logarithmic scale
 The intervals given in the previous point is related to $cost$ on log-scale. Try to construct intervals for $cost$ on the original scale.
 
 
+
 ## h) Lasso regression
 
-Aslo try out Lasso regression on this data set.
+Also try out Lasso regression on this data set.
 
 If you use cross-validation for selection of the penalty parameter, which variables are then included in the final model?
 
