@@ -10,6 +10,7 @@ subtitle: STK2100
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
 
 ```
 
@@ -47,6 +48,7 @@ nuclear = read.table(paste(datadir, "nuclear.dat", sep=""), header=T)
 Generating some plots to gain an intuition for the dataset.
 
 ```{r}
+
 plot(nuclear)
 ```
 This is very cluttered and hard to grasp, much due to categorical variables not giving any immeadiate insight. Therefore we will plot the dataset only regarding the continous variables.
@@ -97,79 +99,177 @@ Removing the highest corresponding P-value, i.e. t1 gives a better result as a h
 #Fit with t1 taken away.
 model2 = lm(log(cost)~.-t1,data=nuclear)
 summary(model2)
-
 ```
  
  An increase from 13.28 to 15.42 in the F-statistic (explain F-statistic), increase of the multiple R-squared from 0.8635 to 0.8631 and likewise 0.7985 to 0.8072 for the adjusted R-squared. 
  
 ## d) 
 
-Continuing to remove all explanatory variables untill all P-values are less than $0.05$. What is the final model?
+Continuing to remove all explanatory variables until all P-values are less than $0.05$. What is the final model?
 Make different plots in order to evaluate whether the model is reasonable.
+
+```{r}
+# Iteratively removing the highest covariate with p-value over 0.05
+variables <- names(nuclear)[-1]
+target <- "log(cost)"
+
+removed_variables = c("-t1")
+for (i in 1:(length(variables)-1)){
+  # Defining the formula
+  f <- as.formula(
+    paste(target, paste(removed_variables,
+                        collapse= " - "),
+                        sep = " ~."))
+  
+  # Computing the model
+  filtermodel <- lm(f, data=nuclear)
+
+  # Saving R2 coefficients
+  
+  # Finding the covariate with the highest p value
+  p_values <- summary(filtermodel)$coefficients[2:(length(variables)-length(removed_variables)),4]
+  
+  max_p_ind <- which.max(p_values)
+  max_p_name <- names(p_values[max_p_ind])
+  
+  # Checking if the highest p value is higher than 0.05
+  if (p_values[max_p_ind]>0.05){
+    removed_variables <- append(removed_variables, max_p_name)
+  
+  } else {
+    break
+  }
+}
+
+summary(filtermodel)
+```
 
 
 ```{r}
-model3 <- lm(log(cost)~. -t1-bw, data=nuclear)
-#summary(model3)
-
-model4 <- lm(log(cost)~. -t1-bw-pr, data=nuclear)
-#summary(model4)
-
-model5 <- lm(log(cost)~. -t1-bw-pr-t2, data=nuclear)
-#summary(model5)
-
-model5 <- lm(log(cost)~. -t1-bw-pr-t2-cum.n, data=nuclear)
-#summary(model5)
-
-model6 <- lm(log(cost)~. -t1-bw-pr-t2-cum.n-ct, data=nuclear)
-summary(model6)
+plot(filtermodel)
 ```
+Residuals vs Fitted
+
+
+Normal Q-Q plot indicates some datapoints as outliers for a normally distributed assumption.
+
+Scale Location plot shows that the variance of the residuals are somewhat constant, however with an increase towards higher fitted values.
+
+Residuals vs Leverage plot shows very horizontal trend, although with two datapoints exhibiting high leverage.
+
+
 
 ```{r}
 # Making plots of the final model from forward selection with the criteria of p values < 0.05 
 library(ggplot2)
+y.hat <- predict(filtermodel, nuclear)
+y.2 <- predict(model2, nuclear)
+y <- log(nuclear$cost)
 
-predicted_cost <- data.frame(cost_pred = predict(model6, nuclear), cost=nuclear$cost)
 
-#ggplot(nuclear, aes(x = cap, y = cost)) +
-#  geom_point() + 
-#  geom_line(color="red", data = predicted_cost, aes(x = cap, y = cost))
-
+plot(y,y.hat)
+plot(y,y.2)
+  
 ```
 
 
 ## e) Model based on quadratic error
 
-Use the final model to predict response and make a model based on the average quadratic error $(\frac{1}{n} \sum_{i=1}^n(y_i-\hat{y_i})^2)$ in order ot evaluate how good the model is. Discuss weaknesses with such a procedure. 
-
-
-Assume now we want to predict $cost$ for a new data point. More specifically we are interested in $\theta = \mathbb{E}[Y|\bold{x^*}]$ as well as $\eta = \mathbb{E}[\text{exp}(Y)|\bold{x^*}]$ where $\bold*$ is defined by the $d.new$ data point in the code below.
+Use the final model to predict response and make a model based on the average quadratic error $(\frac{1}{n} \sum_{i=1}^n(y_i-\hat{y_i})^2)$ in order to evaluate how good the model is. Discuss weaknesses with such a procedure. 
 
 ```{r}
-#d.new = data.frame(data=70.0, t1=13, t2=50, cap=800, pr=1, ne=0, ct=0, bw=1, cum.n=8, pt=1)
+y.hat <- predict(filtermodel, nuclear)
+y <- log(nuclear$cost)
 
-#predict(fit, d.new, interval="confidence")
-#predict(fit, d.new, interval="predict")
-
+MSE <- sum((y-y.hat)^2)/length(y)
+MSE
 ```
+Evaluating the model with the average quadratic error we get on average a squared difference of $0.026$. But this does not tell us everything about the model. Additionally, computing the $R^2$ metric gives us a indication of how the variance in the data is transferred to the model. 
+
+```{r}
+R2 <- 1- sum((y-y.hat)^2)/sum((y-mean(y))^2)
+R2
+# Or:
+var(y.hat)/var(y)
+```
+With a $R^2$ of $0.809$ which tells us that the model explains $80.9%$ of the variance in data.
+
+
+Assume now we want to predict $cost$ for a new data point. More specifically we are interested in $\theta = \mathbb{E}[Y|\mathbf{x^*}]$ as well as $\eta = \mathbb{E}[\text{exp}(Y)|\mathbf{x^*}]$ where $\mathbf*$ is defined by the $d.new$ data point in the code below.
+
 
 ## f) Differences between confidence and predict commands
-Run the two commands. Discuss the differences bweteen the two predict commands.
+Run the two commands. Discuss the differences between the two predict commands.
+```{r}
+
+d.new <- data.frame(date=70.0, t1=13, t2=50, cap=800, pr=1, ne=0, ct=0, bw=1, cum.n=8, pt=1)
+
+interval.conf <- predict(filtermodel, d.new, interval="confidence")
+interval.pred <-predict(filtermodel, d.new, interval="predict")
+
+interval.conf
+interval.pred
+
+```
+For both the interval choices, the fit is the same. However the confidence intervals upper and lower bounds are narrower than the prediction. 
+
+The confidence interval portrays the uncertainty regarding the mean of the prediction values, and as $\mathbb{E}[\epsilon]=0$, the random, gaussian noise gets omitted from the calculations. The prediction interval however portrays the uncertainty of a single, predicted point. Therefore it takes into account the random noise $\epsilon$.
 
 
 ## g) Constructing log intervals on non-logarithmic scale
 The intervals given in the previous point is related to $cost$ on log-scale. Try to construct intervals for $cost$ on the original scale.
 
+```{r}
+
+
+
+ggplot(data=d.new, aes(,y)) +
+  geom_point() + 
+  geom_errorbar(aes(ymin = interval.conf[2], ymax = interval.conf[3]))
+
+exp(interval.conf)
+
+```
+
+
 
 ## h) Lasso regression
 
-Aslo try out Lasso regression on this data set.
+Also try out Lasso regression on this data set.
 
 If you use cross-validation for selection of the penalty parameter, which variables are then included in the final model?
 
 Also compare this with the model you obtained earlier.
 
-Hint: Loook at the Hitters_lasso.R script.
+Hint: Look at the Hitters_lasso.R script.
+
+```{r}
+nuclear[ ,-1 ]
+```
+
+
+
+
+```{r}
+# Lasso regression
+#library(glmnet)
+
+grid <- 10^seq(5, -2, length=100)
+
+x <- nuclear[ ,-1]
+y <- nuclear[ , 1]
+
+
+lasso.model <- glmnet(x,y, alpha=1, lambda=grid)
+
+#Plotting estimates for different values of lambda
+plot(lasso.model, xvar="lambda")
+
+
+
+
+
+```
 
 
 # Problem 2.
