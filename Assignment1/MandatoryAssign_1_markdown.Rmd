@@ -1,17 +1,22 @@
 ---
 title: "Mandatory Assignment 1"
 author: "Håkon Berggren Olsen"
-date: "Spring 2020"
+date: "Spring 2022"
 output:
   pdf_document: default
-  html_document: default
+  html_document:
+    df_print: paged
 subtitle: STK2100
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-library(tidyverse)
 
+require(tinytex)
+
+
+library(tidyverse)
+library(glmnet)
 ```
 
 # Problem 1.
@@ -55,7 +60,6 @@ This is very cluttered and hard to grasp, much due to categorical variables not 
 
 ```{r}
 cont_var <- c("cost", "date", "t1", "t2", "cap", "cum.n")
-cat_var <- c("pr", "ne", "ct", "bw", "pt")
 plot(nuclear[cont_var])
 ```
 \
@@ -64,7 +68,16 @@ From this figure we can see some clear trends. We can see the cost of the LWRs a
 
 The net capacity of the LWR, cap, does show a slight increase with cost. This is expected as the capital cost of the investment should match it's returns.
 
-NOTE: still not sure how the cum.n "The cumulative number of power plants constructed by each architect-engineer."  --- what architect-engineer? -- is construed.
+
+### Box plots for the categorical variables
+
+```{r}
+# Box plots
+cat_var <- c("pr", "ne", "ct", "bw", "pt")
+
+boxplot(nuclear[cat_var])
+```
+
 
 
 ## b) Constructing a model
@@ -75,21 +88,15 @@ $$ Y_i = \beta_0 +\beta_1 x_{i,1}+ \cdot\cdot\cdot +\beta_p x_{p,i} + \epsilon_i
 
 where $Y_i$ is cost at log scale for observation $i$. 
 
- - What are the standard assumptions about the noise term $\epsilon_i$? Discuss also which of these assumptions that are the most important?
-    - The variance of the noise, $\epsilon_i$ are constant.
-    - The expectance of the noise is $\mathbb{E}[\epsilon_i] = 0$
-    - The noise is uncorrelated.
-    - "The indepenedent variables are measured with no error"
-    - "The sample is representative of the population at large."
-
- - Fit this model including all the observations with log(cost) as response and all the other variables as covariates. Discuss the results
+The standard assumptions about the noise term $\epsilon_i$ are that it is an independent, identically distributed, random variable from a Gaussian distribution $N(0,\sigma^2)$. It also assumed that the variance of the noise is constant $\text{Var}[\epsilon_i] =\sigma^2$ and that the expectance is $\mathbb{E}[\epsilon_i]=0$. 
  
 ```{r}
 #fit with all covariates
 model2 = lm(log(cost)~., data=nuclear)
 summary(model2)
 ```
-Discuss the results here
+
+The model on the log-transformed cost shows an $R^2$ value of $0.799$. Although there are alot of covariates which have high p-values and therefore does not help the model with more accurate predictions. As seen from the plots in problem a), the net capacity has a strong, linear relationship with the capital cost of the power plant.
 
 ## c) Removing covariates with high P-value
 
@@ -103,10 +110,8 @@ summary(model2)
  
  An increase from 13.28 to 15.42 in the F-statistic (explain F-statistic), increase of the multiple R-squared from 0.8635 to 0.8631 and likewise 0.7985 to 0.8072 for the adjusted R-squared. 
  
-## d) 
-
-Continuing to remove all explanatory variables until all P-values are less than $0.05$. What is the final model?
-Make different plots in order to evaluate whether the model is reasonable.
+## d) Filtering on p-values
+Iterating over all the covariates to remove those that do not have a p-value over 0.05.
 
 ```{r}
 # Iteratively removing the highest covariate with p-value over 0.05
@@ -146,10 +151,10 @@ summary(filtermodel)
 
 
 ```{r}
+dev.new(width=5, height=5, unit="cm")
+
 plot(filtermodel)
 ```
-Residuals vs Fitted
-
 
 Normal Q-Q plot indicates some datapoints as outliers for a normally distributed assumption.
 
@@ -159,23 +164,10 @@ Residuals vs Leverage plot shows very horizontal trend, although with two datapo
 
 
 
-```{r}
-# Making plots of the final model from forward selection with the criteria of p values < 0.05 
-library(ggplot2)
-y.hat <- predict(filtermodel, nuclear)
-y.2 <- predict(model2, nuclear)
-y <- log(nuclear$cost)
 
+## e) Model based on Mean Squared Error
 
-plot(y,y.hat)
-plot(y,y.2)
-  
-```
-
-
-## e) Model based on quadratic error
-
-Use the final model to predict response and make a model based on the average quadratic error $(\frac{1}{n} \sum_{i=1}^n(y_i-\hat{y_i})^2)$ in order to evaluate how good the model is. Discuss weaknesses with such a procedure. 
+Evaluating the model with Mean Squared Error $(\frac{1}{n} \sum_{i=1}^n(y_i-\hat{y_i})^2)$:
 
 ```{r}
 y.hat <- predict(filtermodel, nuclear)
@@ -195,11 +187,12 @@ var(y.hat)/var(y)
 With a $R^2$ of $0.809$ which tells us that the model explains $80.9%$ of the variance in data.
 
 
-Assume now we want to predict $cost$ for a new data point. More specifically we are interested in $\theta = \mathbb{E}[Y|\mathbf{x^*}]$ as well as $\eta = \mathbb{E}[\text{exp}(Y)|\mathbf{x^*}]$ where $\mathbf*$ is defined by the $d.new$ data point in the code below.
-
 
 ## f) Differences between confidence and predict commands
-Run the two commands. Discuss the differences between the two predict commands.
+
+Given a new datapoint $\mathbf{x*}$, we want to find out the $\theta = \mathbb{E}[Y|\mathbf{x^*}]$ as well as $\eta = \mathbb{E}[\text{exp}(Y)|\mathbf{x^*}]$. 
+
+Predicting the datapoint from the problem with two different intervals: confidence and predict
 ```{r}
 
 d.new <- data.frame(date=70.0, t1=13, t2=50, cap=800, pr=1, ne=0, ct=0, bw=1, cum.n=8, pt=1)
@@ -217,59 +210,62 @@ The confidence interval portrays the uncertainty regarding the mean of the predi
 
 
 ## g) Constructing log intervals on non-logarithmic scale
-The intervals given in the previous point is related to $cost$ on log-scale. Try to construct intervals for $cost$ on the original scale.
+Plotting the intervals from the previous problem onto non-logscale:
 
 ```{r}
 
-
-
-ggplot(data=d.new, aes(,y)) +
+CI <- data.frame(rbind(interval.conf, interval.pred))
+CIexp <- exp(CI)
+CIexp
+ggplot(data=CIexp, aes(x=seq(nrow(CIexp)), y=fit))+
   geom_point() + 
-  geom_errorbar(aes(ymin = interval.conf[2], ymax = interval.conf[3]))
-
-exp(interval.conf)
-
+  geom_errorbar(aes(ymin = lwr, ymax = upr))
 ```
 
 
 
 ## h) Lasso regression
 
-Also try out Lasso regression on this data set.
-
-If you use cross-validation for selection of the penalty parameter, which variables are then included in the final model?
-
-Also compare this with the model you obtained earlier.
-
-Hint: Look at the Hitters_lasso.R script.
-
-```{r}
-nuclear[ ,-1 ]
-```
-
-
-
+Lasso regression on the data set is shown below.
 
 ```{r}
 # Lasso regression
-#library(glmnet)
+library(glmnet)
 
 grid <- 10^seq(5, -2, length=100)
 
 x <- nuclear[ ,-1]
-y <- nuclear[ , 1]
+y <- log(nuclear[ , 1])
 
-
+# Fitting with Lasso Regression : alpha=1 equals the l1 norm
 lasso.model <- glmnet(x,y, alpha=1, lambda=grid)
 
 #Plotting estimates for different values of lambda
 plot(lasso.model, xvar="lambda")
 
+#Dividing into training/test set
+set.seed(1)
+train=sample(1:nrow(x),nrow(x)/2)
+test=(-train)
 
+x.train = as.matrix(x[train,])
+x.test = as.matrix(x[test,])
+y.train = y[train]
+y.test=y[test]
 
-
-
+#Cross-validation
+set.seed(1)
+cv.out <- cv.glmnet(x.train, y.train, alpha=1)
+plot(cv.out)
 ```
+After cross-validation for the selection of the penalty parameter, the variables included in the final model are everyone expect ct and bw, as shown below. Comparing with the previous model, the lasso regression has a much lower intercept but has not omitted as many covariates.
+
+```{r}
+coef(cv.out, cv.out$lambda.min)
+filtermodel$coefficients
+```
+
+
 
 
 # Problem 2.
@@ -281,79 +277,128 @@ Getting the data
 ```{r}
 datadir = "http://www.uio.no/studier/emner/matnat/math/STK2100/data/"
 Fe <- read.table(paste(datadir, "fe.dat", sep=""), header=T, sep=",")
+```
 
-options(contrasts=c("contr.treamtent", "contr.treatment"))
 
-Fe$form <- as.factor(Fe$form)
+Running the code from the problem with contrasts:
+
+```{r}
+options(contrasts=c("contr.treatment", "contr.treatment"))
 
 fit1 <- lm(Fe ~ form, data=Fe)
-#summary(fit1)
+summary(fit1)
 
 ```
 
-```{r}
-#
+This model behaves poorly with an $R^2$ of around $0.364$. The model only assumes there is one covariate, which is form, and that it ranges between 1,2,3 and 4.
 
-```
-The fitting does not work as the data is not 
+Transforming the "form" column into factors. This lets the model know there are four different covariates, denoted by the dummy variables "form"
 
 
 ```{r}
-#Fe$form <- as.factor(Fe$form)
-
-#fit2 <- lm(Fe~form, data=Fe)
-#summary(fit2)
-
+Fe$form <- as.factor(Fe$form)
+fit1 <- lm(Fe~form, data=Fe)
+summary(fit1)
 ```
+The resulting $R^2$ has now improved up to $0.431$.
 
 
-## b) 
+## b) Constraints
+As explained in the text, the "options(contrasts=c("contr.treatment", "contr.treatment"))" code will set the constraint that $\beta_1=\hat{\beta_1}=0$.
 
-From the summary command (after you used the as.factor command) you should get a regression table where there is no row corresponding to $\beta_1$. The specific options command given above actually include the contraint $\beta_1 = \hat{\beta_1} = 0$.
+This is needed as to portray the relative differences of iron content between the different formations, without discarding the intercept. The interpretation of the other $\beta_j$ parameters is therefore how much more (or less, if negative) iron are in the formations relative to formation 1 (carbonates).
 
-Why is such a contraint necessary?
 
-What interpretations do the other $\beta_j$ parameters then have?
 
 ## c) Alternative Constraint
 
-An alternative constraint is to put $\beta_0 = 0$. This can be obtained by 
+An alternative constraint is to put $\beta_0 = 0$, i.e. removing the intercept. This can be obtained by 
+```{r}
 
-`fit2 <- lm(Fe~form+0, data=Fe)`
+fit2 <- lm(Fe~form+0, data=Fe)
 
-`summary(fit2)`
+summary(fit2)
 
-## d) 
-The constraints $\beta_1 = 0$ or $\beta_2 = 0$ are denoted by $\emph{contrasts}$ in the linear regression terminology. The `contr.treatment` used above corresponds to putting the regression coefficient of the first category equal to zero. An alternative is 
+```
 
-`options(contrasts=c("contr.sum", "contr.sum"))`
-`fit3 <- lm(Fe~form, data=Fe)`
-`summary(fit3)`
-
-in which case a constraint/contrats $\sum_{j=1}^K \beta_j = 0$ is imposed. The `summary`command will still only give $4$ rows in the regression table, not including the row corresponding ot $\beta_4$ in this case. How can you obtain $\hat{\beta_4}$?
+By setting the intercept, $\beta_0=0$, the $\beta_j$ is then interpreted as the mean of the iron content in their respective formations. 
 
 
-## e) 
+## d) Sum of coefficients equals zero
+Using the "contrast=c("contr.sum", "contr.sum")" imposes the constraint $\sum_{j=1}^K \beta_j = 0$. However, as the summary of the fit only displays three of the $\beta_j$, the last one can be found by taking the negative of the sum of all the coeffiecients expect the intercept.
+```{r}
+options(contrasts=c("contr.sum", "contr.sum"))
+fit3 <- lm(Fe~form, data=Fe)
+summary(fit3)
 
-Do the results indicate that there are differences between the formations? Which of the fitted models do you find most suitable for answering this questions?
+beta4 <- -sum(fit3$coefficients[2:4])
+
+```
+
+
+## e) Differences between formations 
+We now have three different models which all are based on constraints on some or more of the $\beta_j$. Printing out the coefficients for all the different models gives us the following 
+
+
+```{r}
+print("Model 1 - First Coeff Zero")
+model1 <- fit1$coefficients[2:4]
+intercept <- fit1$coefficients[1]
+print(setNames(c(intercept, 0,model1), c("(intercept)","form1", names(model1))))
+
+print("Model 2 - no intercept")
+model2 <- fit2$coefficients
+print(setNames(c(0,model2), c("(intercept)", names(model2))))
+
+
+print("Model 3 - sum of coeffs zero ")
+model3 <- fit3$coefficients
+print(setNames(c(model3, beta4),c(names(model3), "form4")))
+
+
+```
+The different models are different combinations of the $\beta_j$. The first model shows the intercept as the iron content of carbonate (form1), while the other coefficients point to how much mure iron there are in the differing formations.
+
+The second model just shows the average iron content across all the formation.
+
+The third model shows the average difference in iron in the formation relative to the average iron in the entire dataset. 
+
+As to which model is better to convey that there exists iron differences, it is somewhat subjective, however I would prefer the third model.
+
+## f) Predicting on four datapoitns
+Creating four new datapoints and predicting upon them
+```{r}
+
+
+newdata = data.frame(form=as.factor(c(1,2,3,4)))
+
+newdata
+
+pred1 = predict(fit1, newdata)
+pred2 = predict(fit2, newdata)
+pred3 = predict(fit3, newdata)
+
+pred1
+pred2
+pred3
+
+```
+
+All these predictions are the same, as the models are essentially similiar as discussed in the previous section, and only differs by how large the intercept is.
+
+## g) Summary ouputs of the model
+The summary outputs of the different models are shown below. As the second model which omits an intercept gives the best $R^2$ score, it should suffice to simplify the model to this extent i.e. basing the model only on the means of the iron content for the respecitve formations.
+
+```{r}
+summary(fit1)
+
+summary(fit2)
+
+summary(fit3)
+```
 
 
 
-## f)
-Now try out the commands
-
-`newdata = data.frame(form=as.factor(c(1,2,3,4)))`
-`pred1 = predict(fit1, newdata)`
-`pred2 = predict(fit2, newdata)`
-`pred3 = predict(fit3, newdata)`
-
-Compare the three predictions and comment on the results.
-
-## g) 
-
-Based on the summary outputs from the different models, is it possible to simplify the model in some way?
-
-Hint: Not all the different outputs will tell the same story here.
 
 
 
